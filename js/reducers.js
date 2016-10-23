@@ -1,29 +1,22 @@
-var actions = require('./actions');
-var KEYS = actions.KEYS;
-
 var immutable = require('immutable');
 var fromJS = immutable.fromJS;
 
+var actions = require('./actions');
+var KEYS = require('./keys');
+
+var CURSOR = {
+  PAGE: 0,
+  COLUMN: 1,
+  PARAGRAPH: 2,
+  LINE: 3,
+  CHUNK: 4,
+  CHAR: 5
+};
+
 var DEFAULT_STATE = fromJS({
-  pages: [
-    { columns: [
-      { style: { left:0, width:100 },
-        paragraphs: [
-        { lines: [
-          { content:
-            { textBlock:
-              { chunks: [
-                { style: {}, textContent: '' }
-              ]}
-            }
-          }
-        ]}
-      ]}
-    ]}
-  ],
-  cursor: {
-    page: 0, column: 0, paragraph: 0, line: 0, chunk: 0, char: 0
-  }
+  cursor: [0, 0, 0, 0, 0, 0],
+  content: [[[[['']]]]],
+  style: []
 });
 
 function reducers(state, action) {
@@ -31,104 +24,115 @@ function reducers(state, action) {
     state = DEFAULT_STATE;
   }
 
-  var cursor = state.get('cursor').toJS();
+  var cursor = state.get('cursor');
+  var content = state.get('content');
 
-  function getLines(paragraph) {
-    if (paragraph === undefined) paragraph = cursor.paragraph;
-    return state.getIn(['pages', cursor.page, 'columns', cursor.column, 'paragraphs', paragraph, 'lines']);
+  function current(cursorDepth) {
+    return cursor.take(cursorDepth + 1);
   }
-  function getLineChunks(line) {
-    if (line === undefined) line = cursor.line;
-    return getLines().getIn([line, 'content', 'textBlock', 'chunks']);
-  }
-  function getChunkText(chunk) {
-    if (chunk === undefined) chunk = cursor.chunk;
-    return getLineChunks().getIn([chunk, 'textContent']);
-  }
-  function updateChunkText(updater) {
-    return state.updateIn([
-      'pages', cursor.page, 'columns', cursor.column, 'paragraphs', cursor.paragraph, 'lines', cursor.line, 'content', 'textBlock', 'chunks', cursor.chunk, 'textContent'
-    ], updater);
+  function currentBut(cursorDepth, value) {
+    return cursor.take(cursorDepth).push(value);
   }
 
   switch (action.type) {
     case actions.TYPE_CHARACTER:
       var char = action.payload;
-      return updateChunkText(textContent => textContent.substr(0, cursor.char) + char + textContent.substr(cursor.char))
-        .updateIn(['cursor', 'char'], char => char + 1);
+      return state.update('content', content =>
+          content.updateIn(current(CURSOR.CHUNK), chunk =>
+            chunk.substr(0, cursor.get(CURSOR.CHAR)) + char + chunk.substr(cursor.get(CURSOR.CHAR))
+          )
+        )
+        .updateIn(['cursor', CURSOR.CHAR], char => char + 1);
 
     case actions.PRESS_KEY:
       var keyCode = action.payload;
       switch (keyCode) {
         case KEYS.BACKSPACE:
-          if (cursor.char > 0) {
-            return updateChunkText(textContent => textContent.substr(0, cursor.char - 1) + textContent.substr(cursor.char))
-              .updateIn(['cursor', 'char'], char => char - 1);
+          if (cursor.get(CURSOR.CHAR) > 0) {
+            return state.update('content', content =>
+                content.updateIn(current(CURSOR.CHUNK), chunk =>
+                  chunk.substr(0, cursor.get(CURSOR.CHAR) - 1) + chunk.substr(cursor.get(CURSOR.CHAR))
+                )
+              )
+              .updateIn(['cursor', CURSOR.CHAR], char => char - 1);
           }
           return state;
 
         case KEYS.ENTER:
-          var textContent = getChunkText();
-          var lineChunks = getLineChunks();
+          var lineChunks = content.getIn(current(CURSOR.LINE));
+          var chunk = content.getIn(current(CURSOR.CHUNK));
 
-          return updateChunkText(textContent => textContent.substr(0, cursor.char))
-            .updateIn(
-              ['pages', cursor.page, 'columns', cursor.column, 'paragraphs', cursor.paragraph, 'lines', cursor.line, 'content', 'textBlock', 'chunks'],
-              chunks => chunks.slice(0, cursor.chunk + 1)
-            )
-            .updateIn(
-              ['pages', cursor.page, 'columns', cursor.column, 'paragraphs'],
-              paragraphs => paragraphs.splice(cursor.paragraph + 1, 0, fromJS({
-                lines: [
-                  { content:
-                    { textBlock:
-                      { chunks: lineChunks.slice(cursor.chunk + 1).unshift(
-                        { style: {}, textContent: textContent.substr(cursor.char) }
-                      )}
-                    }
-                  }
-                ]
-              }))
+          return state.update('content', content =>
+              content.updateIn(current(CURSOR.CHUNK), chunk =>
+                chunk.substr(0, cursor.get(CURSOR.CHAR))
+              )
+              .updateIn(
+                current(CURSOR.LINE),
+                chunks => chunks.slice(0, cursor.get(CURSOR.CHUNK) + 1)
+              )
+              .updateIn(
+                current(CURSOR.COLUMN),
+                paragraphs => paragraphs.splice(cursor.get(CURSOR.PARAGRAPH) + 1, 0, fromJS([
+                  lineChunks.slice(cursor.get(CURSOR.CHUNK) + 1).unshift(
+                    chunk.substr(cursor.get(CURSOR.CHAR))
+                  )
+                ]))
+              )
             )
             .update('cursor', cursor =>
-              cursor.update('paragraph', paragraph => paragraph + 1)
-                .set('line', 0)
-                .set('chunk', 0)
-                .set('char', 0)
+              cursor.update(CURSOR.PARAGRAPH, paragraph => paragraph + 1)
+                .set(CURSOR.LINE, 0)
+                .set(CURSOR.CHUNK, 0)
+                .set(CURSOR.CHAR, 0)
             );
 
         case KEYS.LEFT_ARROW:
-          if (cursor.char > 0) {
-            const prevChar = cursor.char - 1;
+          if (cursor.get(CURSOR.CHAR) > 0) {
+            var prevChar = cursor.get(CURSOR.CHAR) - 1;
             return state.update('cursor', cursor =>
-              cursor.set('char', prevChar)
+              cursor.set(CURSOR.CHAR, prevChar)
             );
           }
-          else if (cursor.chunk > 0) {
-            const prevChunk = cursor.chunk - 1;
+          else if (cursor.get(CURSOR.CHUNK) > 0) {
+            var prevChunk = cursor.get(CURSOR.CHUNK) - 1;
+            var prevChunkChars = content.getIn(currentBut(CURSOR.CHUNK, prevChunk));
+            var prevChar = prevChunkChars.length;
+
             return state.update('cursor', cursor =>
               cursor
-                .set('chunk', prevChunk)
-                .set('char', getChunkText(prevChunk).length)
+                .set(CURSOR.CHUNK, prevChunk)
+                .set(CURSOR.CHAR, prevChar)
             )
           }
-          else if (cursor.line > 0) {
-            const prevLine = cursor.line - 1;
+          else if (cursor.get(CURSOR.LINE) > 0) {
+            var prevLine = cursor.get(CURSOR.LINE) - 1;
+            var prevLineChunks = content.getIn(currentBut(CURSOR.LINE, prevLine));
+            var prevChunk = prevLineChunks.size - 1;
+            var prevChunkChars = prevLineChunks.last();
+            var prevChar = prevChunkChars.length;
+
             return state.update('cursor', cursor =>
               cursor
-                .set('line', prevLine)
-                .set('chunk', getLineChunks(prevLine).size - 1)
-                .set('char', getLineChunks(prevLine).last().get('textContent').length)
+                .set(CURSOR.LINE, prevLine)
+                .set(CURSOR.CHUNK, prevChunk)
+                .set(CURSOR.CHAR, prevChar)
             )
           }
-          else if (cursor.paragraph > 0) {
-            const prevParagraph = cursor.paragraph - 1;
+          else if (cursor.get(CURSOR.PARAGRAPH) > 0) {
+            var prevParagraph = cursor.get(CURSOR.PARAGRAPH) - 1;
+            var prevParaLines = content.getIn(currentBut(CURSOR.PARAGRAPH, prevParagraph));
+            var prevLine = prevParaLines.size - 1;
+            var prevLineChunks = prevParaLines.last();
+            var prevChunk = prevLineChunks.size - 1;
+            var prevChunkChars = prevLineChunks.last();
+            var prevChar = prevChunkChars.length;
+  
             return state.update('cursor', cursor =>
               cursor
-                .set('paragraph', prevParagraph)
-                .set('line', getLines(prevParagraph).size - 1)
-                .set('chunk', getLines(prevParagraph).last().getIn(['content', 'textBlock', 'chunks']).size - 1)
-                .set('char', getLines(prevParagraph).last().getIn(['content', 'textBlock', 'chunks']).last().get('textContent').length)
+                .set(CURSOR.PARAGRAPH, prevParagraph)
+                .set(CURSOR.LINE, prevLine)
+                .set(CURSOR.CHUNK, prevChunk)
+                .set(CURSOR.CHAR, prevChar)
             )
           }
           return state;

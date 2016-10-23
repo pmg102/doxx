@@ -1,12 +1,12 @@
 var actions = require('../js/actions');
-var KEYS = actions.KEYS;
 var pressKey = actions.pressKey;
 var typeCharacter = actions.typeCharacter;
-
+var KEYS = require('../js/keys');
 var reducers = require('../js/reducers');
 
 var immutable = require('immutable');
 var fromJS = immutable.fromJS;
+var List = immutable.List;
 
 var expect = require('chai').expect;
 
@@ -15,26 +15,9 @@ describe('Doxx', function() {
 
   function model(paragraphs, cursor) {
     return fromJS({
-      pages: [
-        { columns: [
-          { style: { left: 0, width: 100 },
-            paragraphs: paragraphs.map(lines => (
-              { lines: lines.map(chunks => (
-                { content:
-                  { textBlock:
-                    { chunks: chunks.map(chunk => (
-                      { style: {}, textContent: chunk }
-                    ))}
-                  }
-                }
-              ))}
-            ))
-          }
-        ]}
-      ],
-      cursor: {
-        page: 0, column: 0, paragraph: cursor[0], line: cursor[1], chunk: cursor[2], char: cursor[3]
-      }
+      content: [[paragraphs]],
+      cursor: List([0, 0]).concat(cursor),
+      style: []
     });
   }
 
