@@ -140,16 +140,16 @@ function reducers(state, action) {
           return state;
 
         case KEYS.RIGHT_ARROW:
-          if (cursor.get(CURSOR.CHAR) < content.getIn(cursor).length) {
+          if (cursor.get(CURSOR.CHAR) < content.getIn(current(CURSOR.CHUNK)).length) {
             return jumpTo(moveCursorToNext(CURSOR.CHAR));
           }
-          else if (cursor.get(CURSOR.CHUNK) < content.getIn(current(CURSOR.CHUNK)).size - 1) {
+          else if (cursor.get(CURSOR.CHUNK) < content.getIn(current(CURSOR.LINE)).size - 1) {
             return jumpTo(moveCursorToNext(CURSOR.CHUNK));
           }
-          else if (cursor.get(CURSOR.LINE) < content.getIn(current(CURSOR.LINE)).size - 1) {
+          else if (cursor.get(CURSOR.LINE) < content.getIn(current(CURSOR.PARAGRAPH)).size - 1) {
             return jumpTo(moveCursorToNext(CURSOR.LINE));
           }
-          else if (cursor.get(CURSOR.PARAGRAPH) < content.getIn(current(CURSOR.PARAGRAPH)).size - 1) {
+          else if (cursor.get(CURSOR.PARAGRAPH) < content.getIn(current(CURSOR.COLUMN)).size - 1) {
             return jumpTo(moveCursorToNext(CURSOR.PARAGRAPH));
           }
           return state;

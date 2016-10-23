@@ -47,18 +47,34 @@ describe('Doxx', function() {
       model([[['Good ', 'mor']], [['ning', ' Vietnam']]], [1, 0, 0, 0]));
   });
 
-  it('should move cursor on left arrow', function() {
+  describe('cursor moves forward and back over chars and chunk/line/paragraphs', () => {
     function expectCursorChange(paragraphs, initialCursor, action, expectedCursor) {
       expectChange(model(paragraphs, initialCursor), action, model(paragraphs, expectedCursor));
     }
-    expectCursorChange([[['foo']]], [0, 0, 0, 0], pressKey(KEYS.LEFT_ARROW), [0, 0, 0, 0]);
-    expectCursorChange([[['foo']]], [0, 0, 0, 3], pressKey(KEYS.LEFT_ARROW), [0, 0, 0, 2]);
-    expectCursorChange([[['chunk1', 'chunk2']]], [0, 0, 1, 0], pressKey(KEYS.LEFT_ARROW), [0, 0, 0, 6]);
-    expectCursorChange([[['chunk1', 'chunk2'], ['line2']]], [0, 1, 0, 0], pressKey(KEYS.LEFT_ARROW), [0, 0, 1, 6]);
-    expectCursorChange([[['p1line1'], ['p1line2chunk1', 'p1line2chunk2']], [['para2']]],
-      [1, 0, 0, 0], pressKey(KEYS.LEFT_ARROW), [0, 1, 1, 13]);
+
+    const FIXTURES = [
+      {paragraphs: [[['foo']]], before: [0, 0, 0, 3], after: [0, 0, 0, 2]},
+      {paragraphs: [[['chunk1', 'chunk2']]], before: [0, 0, 1, 0], after: [0, 0, 0, 6]},
+      {paragraphs: [[['chunk1', 'chunk2'], ['line2']]], before: [0, 1, 0, 0], after: [0, 0, 1, 6]},
+      {paragraphs: [[['p1line1'], ['p1line2chunk1', 'p1line2chunk2']], [['para2']]], before: [1, 0, 0, 0], after: [0, 1, 1, 13]},
+    ];
+
+    it('should move back on left arrow', function() {
+      FIXTURES.forEach(spec =>
+        expectCursorChange(spec.paragraphs, spec.before, pressKey(KEYS.LEFT_ARROW), spec.after)
+      );
+    });
+
+    it('should not move back/forward if at start/end of doc', function() {
+      expectCursorChange([[['foo']]], [0, 0, 0, 0], pressKey(KEYS.LEFT_ARROW), [0, 0, 0, 0]);
+      expectCursorChange([[['foo']]], [0, 0, 0, 3], pressKey(KEYS.RIGHT_ARROW), [0, 0, 0, 3]);
+    });
+
+    it('should move forward on right arrow', function() {
+      FIXTURES.forEach(spec =>
+        expectCursorChange(spec.paragraphs, spec.after, pressKey(KEYS.RIGHT_ARROW), spec.before)
+      );
+    });
   });
 
-  it('should move cursor on right arrow', function() {
-  });
 });
