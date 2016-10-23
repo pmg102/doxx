@@ -18,7 +18,7 @@ var DEFAULT_STATE = fromJS({
   cursor: [0, 0, 0, 0, 0, 0],
   selection: {},
   content: [[[[['']]]]],
-  style: []
+  style: [[[[[[]]]]]]
 });
 
 function reducers(state, action) {
@@ -158,12 +158,22 @@ function reducers(state, action) {
     case actions.APPLY_STYLE:
       // Break up the selection's enclosing chunk to contain a chunk with just the selection
       // Apply action.payload's style to that chunk
-      return state.update('content', content =>
-        content.setIn([0, 0, 0, 0], ['Good ', 'morning', ' Vietnam'])
-      )
-      .update('style', style =>
-        [[[[], [STYLES.BOLD], []]]]
-      );
+      const selectionStart = state.getIn(['selection', 'start', CURSOR.CHAR]);
+      const selectionEnd = state.getIn(['selection', 'end', CURSOR.CHAR]);
+
+      return state
+        .update('content', content =>
+          content.updateIn(current(CURSOR.LINE), line =>
+            fromJS([
+              line.get(0).slice(0, selectionStart),
+              line.get(0).slice(selectionStart, selectionEnd),
+              line.get(0).slice(selectionEnd),
+            ])
+          )
+        )
+        .update('style', style =>
+          style.setIn(current(CURSOR.COLUMN), [[], [STYLES.BOLD], []])
+        );
 
     default:
       return state;
