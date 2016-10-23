@@ -34,6 +34,44 @@ function reducers(state, action) {
     return cursor.take(cursorDepth).push(value);
   }
 
+  function jumpTo(jumpSpec) {
+    return state.update('cursor', cursor =>
+      cursor.take(cursor.size - jumpSpec.length).concat(jumpSpec)
+    );
+  }
+
+  function moveCursorToPrev(what) {
+    var prevWhatIdx = cursor.get(what) - 1;
+    var prevWhat = content.getIn(currentBut(what, prevWhatIdx));
+
+    switch (what) {
+      case CURSOR.PARAGRAPH:
+        return [prevWhatIdx, prevWhat.size - 1, prevWhat.last().size - 1, prevWhat.last().last().length];
+      case CURSOR.LINE:
+        return [prevWhatIdx, prevWhat.size - 1, prevWhat.last().length];
+      case CURSOR.CHUNK:
+        return [prevWhatIdx, prevWhat.length];
+      case CURSOR.CHAR:
+        return [prevWhatIdx];
+    }
+  }
+
+  function moveCursorToNext(what) {
+    var nextWhatIdx = cursor.get(what) + 1;
+    var nextWhat = content.getIn(currentBut(what, nextWhatIdx));
+
+    switch (what) {
+      case CURSOR.PARAGRAPH:
+        return [nextWhatIdx, 0, 0, 0];
+      case CURSOR.LINE:
+        return [nextWhatIdx, 0, 0];
+      case CURSOR.CHUNK:
+        return [nextWhatIdx, 0];
+      case CURSOR.CHAR:
+        return [nextWhatIdx];
+    }
+  }
+
   switch (action.type) {
     case actions.TYPE_CHARACTER:
       var char = action.payload;
@@ -87,28 +125,6 @@ function reducers(state, action) {
             );
 
         case KEYS.LEFT_ARROW:
-          function jumpTo(jumpSpec) {
-            return state.update('cursor', cursor =>
-              cursor.take(cursor.size - jumpSpec.length).concat(jumpSpec)
-            );
-          }
-
-          function moveCursorToPrev(what) {
-            var prevWhatIdx = cursor.get(what) - 1;
-            var prevWhat = content.getIn(currentBut(what, prevWhatIdx));
-
-            switch (what) {
-              case CURSOR.PARAGRAPH:
-                return [prevWhatIdx, prevWhat.size - 1, prevWhat.last().size - 1, prevWhat.last().last().length];
-              case CURSOR.LINE:
-                return [prevWhatIdx, prevWhat.size - 1, prevWhat.last().length];
-              case CURSOR.CHUNK:
-                return [prevWhatIdx, prevWhat.length];
-              case CURSOR.CHAR:
-                return [prevWhatIdx];
-            }
-          }
-
           if (cursor.get(CURSOR.CHAR) > 0) {
             return jumpTo(moveCursorToPrev(CURSOR.CHAR));
           }
@@ -120,6 +136,21 @@ function reducers(state, action) {
           }
           else if (cursor.get(CURSOR.PARAGRAPH) > 0) {
             return jumpTo(moveCursorToPrev(CURSOR.PARAGRAPH));
+          }
+          return state;
+
+        case KEYS.RIGHT_ARROW:
+          if (cursor.get(CURSOR.CHAR) < content.getIn(cursor).length) {
+            return jumpTo(moveCursorToNext(CURSOR.CHAR));
+          }
+          else if (cursor.get(CURSOR.CHUNK) < content.getIn(current(CURSOR.CHUNK)).size - 1) {
+            return jumpTo(moveCursorToNext(CURSOR.CHUNK));
+          }
+          else if (cursor.get(CURSOR.LINE) < content.getIn(current(CURSOR.LINE)).size - 1) {
+            return jumpTo(moveCursorToNext(CURSOR.LINE));
+          }
+          else if (cursor.get(CURSOR.PARAGRAPH) < content.getIn(current(CURSOR.PARAGRAPH)).size - 1) {
+            return jumpTo(moveCursorToNext(CURSOR.PARAGRAPH));
           }
           return state;
 
