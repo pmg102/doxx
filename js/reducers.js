@@ -87,60 +87,39 @@ function reducers(state, action) {
             );
 
         case KEYS.LEFT_ARROW:
-          function jumpTo(spec) {
+          function jumpTo(jumpSpec) {
             return state.update('cursor', cursor =>
-              cursor
-                .update(CURSOR.CHAR, char => spec.prevChar || char)
-                .update(CURSOR.CHUNK, chunk => spec.prevChunk || chunk)
-                .update(CURSOR.LINE, line => spec.prevLine || line)
-                .update(CURSOR.PARAGRAPH, paragraph => spec.prevChar || paragraph)
+              cursor.take(cursor.size - jumpSpec.length).concat(jumpSpec)
             );
           }
 
+          function moveCursorToPrev(what) {
+            var prevWhatIdx = cursor.get(what) - 1;
+            var prevWhat = content.getIn(currentBut(what, prevWhatIdx));
+
+            switch (what) {
+              case CURSOR.PARAGRAPH:
+                return [prevWhatIdx, prevWhat.size - 1, prevWhat.last().size - 1, prevWhat.last().last().length];
+              case CURSOR.LINE:
+                return [prevWhatIdx, prevWhat.size - 1, prevWhat.last().length];
+              case CURSOR.CHUNK:
+                return [prevWhatIdx, prevWhat.length];
+              case CURSOR.CHAR:
+                return [prevWhatIdx];
+            }
+          }
+
           if (cursor.get(CURSOR.CHAR) > 0) {
-            var prevChar = cursor.get(CURSOR.CHAR) - 1;
-            return jumpTo({
-              prevChar
-            });
+            return jumpTo(moveCursorToPrev(CURSOR.CHAR));
           }
           else if (cursor.get(CURSOR.CHUNK) > 0) {
-            var prevChunk = cursor.get(CURSOR.CHUNK) - 1;
-            var prevChunkChars = content.getIn(currentBut(CURSOR.CHUNK, prevChunk));
-            var prevChar = prevChunkChars.length;
-
-            return jumpTo({
-              prevChunk,
-              prevChar
-            });
+            return jumpTo(moveCursorToPrev(CURSOR.CHUNK));
           }
           else if (cursor.get(CURSOR.LINE) > 0) {
-            var prevLine = cursor.get(CURSOR.LINE) - 1;
-            var prevLineChunks = content.getIn(currentBut(CURSOR.LINE, prevLine));
-            var prevChunk = prevLineChunks.size - 1;
-            var prevChunkChars = prevLineChunks.last();
-            var prevChar = prevChunkChars.length;
-
-            return jumpTo({
-              prevLine,
-              prevChunk,
-              prevChar
-            });
+            return jumpTo(moveCursorToPrev(CURSOR.LINE));
           }
           else if (cursor.get(CURSOR.PARAGRAPH) > 0) {
-            var prevParagraph = cursor.get(CURSOR.PARAGRAPH) - 1;
-            var prevParaLines = content.getIn(currentBut(CURSOR.PARAGRAPH, prevParagraph));
-            var prevLine = prevParaLines.size - 1;
-            var prevLineChunks = prevParaLines.last();
-            var prevChunk = prevLineChunks.size - 1;
-            var prevChunkChars = prevLineChunks.last();
-            var prevChar = prevChunkChars.length;
-  
-            return jumpTo({
-              prevParagraph,
-              prevLine,
-              prevChunk,
-              prevChar
-            });
+            return jumpTo(moveCursorToPrev(CURSOR.PARAGRAPH));
           }
           return state;
 
