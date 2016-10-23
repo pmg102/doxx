@@ -108,7 +108,7 @@ describe('Doxx', function() {
       model([[['Good morning Vietnam']]], [0, 0, 0, 12], {start: [0, 0, 0, 0, 0, 5], end: [0, 0, 0, 0, 0, 12]}),
       applyStyle(STYLES.BOLD),
       model([[['Good ', 'morning', ' Vietnam']]], [0, 0, 0, 12], {start: [0, 0, 0, 0, 0, 5], end: [0, 0, 0, 0, 0, 12]},
-        [[[[], [STYLES.BOLD], []]]])
+        [[[[[[], [STYLES.BOLD], []]]]]])
     );
   });
 

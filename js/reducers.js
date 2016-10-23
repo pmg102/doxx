@@ -172,7 +172,7 @@ function reducers(state, action) {
           )
         )
         .update('style', style =>
-          style.setIn(current(CURSOR.COLUMN), [[], [STYLES.BOLD], []])
+          style.setIn(current(CURSOR.LINE), [[], [STYLES.BOLD], []])
         );
 
     default:
