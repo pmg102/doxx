@@ -87,22 +87,31 @@ function reducers(state, action) {
             );
 
         case KEYS.LEFT_ARROW:
+          function jumpTo(spec) {
+            return state.update('cursor', cursor =>
+              cursor
+                .update(CURSOR.CHAR, char => spec.prevChar || char)
+                .update(CURSOR.CHUNK, chunk => spec.prevChunk || chunk)
+                .update(CURSOR.LINE, line => spec.prevLine || line)
+                .update(CURSOR.PARAGRAPH, paragraph => spec.prevChar || paragraph)
+            );
+          }
+
           if (cursor.get(CURSOR.CHAR) > 0) {
             var prevChar = cursor.get(CURSOR.CHAR) - 1;
-            return state.update('cursor', cursor =>
-              cursor.set(CURSOR.CHAR, prevChar)
-            );
+            return jumpTo({
+              prevChar
+            });
           }
           else if (cursor.get(CURSOR.CHUNK) > 0) {
             var prevChunk = cursor.get(CURSOR.CHUNK) - 1;
             var prevChunkChars = content.getIn(currentBut(CURSOR.CHUNK, prevChunk));
             var prevChar = prevChunkChars.length;
 
-            return state.update('cursor', cursor =>
-              cursor
-                .set(CURSOR.CHUNK, prevChunk)
-                .set(CURSOR.CHAR, prevChar)
-            )
+            return jumpTo({
+              prevChunk,
+              prevChar
+            });
           }
           else if (cursor.get(CURSOR.LINE) > 0) {
             var prevLine = cursor.get(CURSOR.LINE) - 1;
@@ -111,12 +120,11 @@ function reducers(state, action) {
             var prevChunkChars = prevLineChunks.last();
             var prevChar = prevChunkChars.length;
 
-            return state.update('cursor', cursor =>
-              cursor
-                .set(CURSOR.LINE, prevLine)
-                .set(CURSOR.CHUNK, prevChunk)
-                .set(CURSOR.CHAR, prevChar)
-            )
+            return jumpTo({
+              prevLine,
+              prevChunk,
+              prevChar
+            });
           }
           else if (cursor.get(CURSOR.PARAGRAPH) > 0) {
             var prevParagraph = cursor.get(CURSOR.PARAGRAPH) - 1;
@@ -127,13 +135,12 @@ function reducers(state, action) {
             var prevChunkChars = prevLineChunks.last();
             var prevChar = prevChunkChars.length;
   
-            return state.update('cursor', cursor =>
-              cursor
-                .set(CURSOR.PARAGRAPH, prevParagraph)
-                .set(CURSOR.LINE, prevLine)
-                .set(CURSOR.CHUNK, prevChunk)
-                .set(CURSOR.CHAR, prevChar)
-            )
+            return jumpTo({
+              prevParagraph,
+              prevLine,
+              prevChunk,
+              prevChar
+            });
           }
           return state;
 
