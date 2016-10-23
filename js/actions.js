@@ -8,9 +8,30 @@ function pressKey(keyCode) {
   return { type: PRESS_KEY, payload: keyCode };
 }
 
+var SET_CURSOR = 'SET_CURSOR';
+function setCursor(cursor) {
+  return { type: SET_CURSOR, payload: cursor };
+}
+
+var MAKE_SELECTION = 'MAKE_SELECTION';
+function makeSelection(start, end) {
+  return { type: MAKE_SELECTION, payload: {start, end} };
+}
+
+var APPLY_STYLE = 'APPLY_STYLE';
+function applyStyle(style) {
+  return { type: APPLY_STYLE, payload: style };
+}
+
 module.exports = {
   TYPE_CHARACTER: TYPE_CHARACTER,
   typeCharacter: typeCharacter,
   PRESS_KEY: PRESS_KEY,
-  pressKey: pressKey
+  pressKey: pressKey,
+  SET_CURSOR: SET_CURSOR,
+  setCursor: setCursor,
+  MAKE_SELECTION: MAKE_SELECTION,
+  makeSelection: makeSelection,
+  APPLY_STYLE: APPLY_STYLE,
+  applyStyle: applyStyle,
 };

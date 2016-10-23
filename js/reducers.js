@@ -3,6 +3,7 @@ var fromJS = immutable.fromJS;
 
 var actions = require('./actions');
 var KEYS = require('./keys');
+var STYLES = require('./styles');
 
 var CURSOR = {
   PAGE: 0,
@@ -15,6 +16,7 @@ var CURSOR = {
 
 var DEFAULT_STATE = fromJS({
   cursor: [0, 0, 0, 0, 0, 0],
+  selection: {},
   content: [[[[['']]]]],
   style: []
 });
@@ -40,35 +42,34 @@ function reducers(state, action) {
     );
   }
 
-  function moveCursorToPrev(what) {
-    var prevWhatIdx = cursor.get(what) - 1;
-    var prevWhat = content.getIn(currentBut(what, prevWhatIdx));
+  function moveCursorToPrev(elementType) {
+    var prevElementIdx = cursor.get(elementType) - 1;
+    var prevElement = content.getIn(currentBut(elementType, prevElementIdx));
 
-    switch (what) {
+    switch (elementType) {
       case CURSOR.PARAGRAPH:
-        return [prevWhatIdx, prevWhat.size - 1, prevWhat.last().size - 1, prevWhat.last().last().length];
+        return [prevElementIdx, prevElement.size - 1, prevElement.last().size - 1, prevElement.last().last().length];
       case CURSOR.LINE:
-        return [prevWhatIdx, prevWhat.size - 1, prevWhat.last().length];
+        return [prevElementIdx, prevElement.size - 1, prevElement.last().length];
       case CURSOR.CHUNK:
-        return [prevWhatIdx, prevWhat.length];
+        return [prevElementIdx, prevElement.length];
       case CURSOR.CHAR:
-        return [prevWhatIdx];
+        return [prevElementIdx];
     }
   }
 
-  function moveCursorToNext(what) {
-    var nextWhatIdx = cursor.get(what) + 1;
-    var nextWhat = content.getIn(currentBut(what, nextWhatIdx));
+  function moveCursorToNext(elementType) {
+    var nextElementIdx = cursor.get(elementType) + 1;
 
-    switch (what) {
+    switch (elementType) {
       case CURSOR.PARAGRAPH:
-        return [nextWhatIdx, 0, 0, 0];
+        return [nextElementIdx, 0, 0, 0];
       case CURSOR.LINE:
-        return [nextWhatIdx, 0, 0];
+        return [nextElementIdx, 0, 0];
       case CURSOR.CHUNK:
-        return [nextWhatIdx, 0];
+        return [nextElementIdx, 0];
       case CURSOR.CHAR:
-        return [nextWhatIdx];
+        return [nextElementIdx];
     }
   }
 
@@ -100,22 +101,24 @@ function reducers(state, action) {
           var lineChunks = content.getIn(current(CURSOR.LINE));
           var chunk = content.getIn(current(CURSOR.CHUNK));
 
-          return state.update('content', content =>
-              content.updateIn(current(CURSOR.CHUNK), chunk =>
-                chunk.substr(0, cursor.get(CURSOR.CHAR))
-              )
-              .updateIn(
-                current(CURSOR.LINE),
-                chunks => chunks.slice(0, cursor.get(CURSOR.CHUNK) + 1)
-              )
-              .updateIn(
-                current(CURSOR.COLUMN),
-                paragraphs => paragraphs.splice(cursor.get(CURSOR.PARAGRAPH) + 1, 0, fromJS([
-                  lineChunks.slice(cursor.get(CURSOR.CHUNK) + 1).unshift(
-                    chunk.substr(cursor.get(CURSOR.CHAR))
-                  )
-                ]))
-              )
+          return state
+            .update('content', content =>
+              content
+                .updateIn(current(CURSOR.CHUNK), chunk =>
+                  chunk.substr(0, cursor.get(CURSOR.CHAR))
+                )
+                .updateIn(
+                  current(CURSOR.LINE),
+                  chunks => chunks.slice(0, cursor.get(CURSOR.CHUNK) + 1)
+                )
+                .updateIn(
+                  current(CURSOR.COLUMN),
+                  paragraphs => paragraphs.splice(cursor.get(CURSOR.PARAGRAPH) + 1, 0, fromJS([
+                    lineChunks.slice(cursor.get(CURSOR.CHUNK) + 1).unshift(
+                      chunk.substr(cursor.get(CURSOR.CHAR))
+                    )
+                  ]))
+                )
             )
             .update('cursor', cursor =>
               cursor.update(CURSOR.PARAGRAPH, paragraph => paragraph + 1)
@@ -125,36 +128,42 @@ function reducers(state, action) {
             );
 
         case KEYS.LEFT_ARROW:
-          if (cursor.get(CURSOR.CHAR) > 0) {
-            return jumpTo(moveCursorToPrev(CURSOR.CHAR));
-          }
-          else if (cursor.get(CURSOR.CHUNK) > 0) {
-            return jumpTo(moveCursorToPrev(CURSOR.CHUNK));
-          }
-          else if (cursor.get(CURSOR.LINE) > 0) {
-            return jumpTo(moveCursorToPrev(CURSOR.LINE));
-          }
-          else if (cursor.get(CURSOR.PARAGRAPH) > 0) {
-            return jumpTo(moveCursorToPrev(CURSOR.PARAGRAPH));
-          }
-          return state;
+          var prevElementType = [CURSOR.CHAR, CURSOR.CHUNK, CURSOR.LINE, CURSOR.PARAGRAPH]
+            .find(elementType => cursor.get(elementType) > 0);
+
+          return prevElementType
+            ? jumpTo(moveCursorToPrev(prevElementType))
+            : state;
 
         case KEYS.RIGHT_ARROW:
-          if (cursor.get(CURSOR.CHAR) < content.getIn(current(CURSOR.CHUNK)).length) {
-            return jumpTo(moveCursorToNext(CURSOR.CHAR));
-          }
-          else if (cursor.get(CURSOR.CHUNK) < content.getIn(current(CURSOR.LINE)).size - 1) {
-            return jumpTo(moveCursorToNext(CURSOR.CHUNK));
-          }
-          else if (cursor.get(CURSOR.LINE) < content.getIn(current(CURSOR.PARAGRAPH)).size - 1) {
-            return jumpTo(moveCursorToNext(CURSOR.LINE));
-          }
-          else if (cursor.get(CURSOR.PARAGRAPH) < content.getIn(current(CURSOR.COLUMN)).size - 1) {
-            return jumpTo(moveCursorToNext(CURSOR.PARAGRAPH));
-          }
-          return state;
+          var nextElementType = [CURSOR.CHAR, CURSOR.CHUNK, CURSOR.LINE, CURSOR.PARAGRAPH]
+            .find(elementType => {
+              const parent = content.getIn(current(elementType - 1));
+              const parentSize = elementType === CURSOR.CHAR ? parent.length : parent.size - 1;
+              return cursor.get(elementType) < parentSize;
+            });
+
+          return nextElementType
+            ? jumpTo(moveCursorToNext(nextElementType))
+            : state;
 
       }
+
+    case actions.SET_CURSOR:
+      return state.set('cursor', fromJS(action.payload));
+
+    case actions.MAKE_SELECTION:
+      return state.set('selection', fromJS(action.payload));
+
+    case actions.APPLY_STYLE:
+      // Break up the selection's enclosing chunk to contain a chunk with just the selection
+      // Apply action.payload's style to that chunk
+      return state.update('content', content =>
+        content.setIn([0, 0, 0, 0], ['Good ', 'morning', ' Vietnam'])
+      )
+      .update('style', style =>
+        [[[[], [STYLES.BOLD], []]]]
+      );
 
     default:
       return state;

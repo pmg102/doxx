@@ -1,7 +1,11 @@
 var actions = require('../js/actions');
 var pressKey = actions.pressKey;
 var typeCharacter = actions.typeCharacter;
+var setCursor = actions.setCursor;
+var makeSelection = actions.makeSelection;
+var applyStyle = actions.applyStyle;
 var KEYS = require('../js/keys');
+var STYLES = require('../js/styles');
 var reducers = require('../js/reducers');
 
 var immutable = require('immutable');
@@ -13,11 +17,16 @@ var expect = require('chai').expect;
 
 describe('Doxx', function() {
 
-  function model(paragraphs, cursor) {
+  function makeCursor(cursor) {
+    return List([0, 0]).concat(cursor);
+  }
+
+  function model(paragraphs, cursor, selection, style) {
     return fromJS({
       content: [[paragraphs]],
-      cursor: List([0, 0]).concat(cursor),
-      style: []
+      cursor: makeCursor(cursor),
+      selection: selection || {},
+      style: style || []
     });
   }
 
@@ -47,11 +56,11 @@ describe('Doxx', function() {
       model([[['Good ', 'mor']], [['ning', ' Vietnam']]], [1, 0, 0, 0]));
   });
 
-  describe('cursor moves forward and back over chars and chunk/line/paragraphs', () => {
-    function expectCursorChange(paragraphs, initialCursor, action, expectedCursor) {
-      expectChange(model(paragraphs, initialCursor), action, model(paragraphs, expectedCursor));
-    }
+  function expectCursorChange(paragraphs, initialCursor, action, expectedCursor) {
+    expectChange(model(paragraphs, initialCursor), action, model(paragraphs, expectedCursor));
+  }
 
+  describe('cursor moves forward and back over chars and chunk/line/paragraphs', () => {
     const FIXTURES = [
       {paragraphs: [[['foo']]], before: [0, 0, 0, 3], after: [0, 0, 0, 2]},
       {paragraphs: [[['chunk1', 'chunk2']]], before: [0, 0, 1, 0], after: [0, 0, 0, 6]},
@@ -75,6 +84,32 @@ describe('Doxx', function() {
         expectCursorChange(spec.paragraphs, spec.after, pressKey(KEYS.RIGHT_ARROW), spec.before)
       );
     });
+  });
+
+  it('moves the cursor', () => {
+    expectCursorChange([[['foo']]], [0, 0, 0, 0], setCursor(makeCursor([0, 0, 0, 2])), [0, 0, 0, 2]);
+  });
+
+  function expectSelectionChange(paragraphs, initialSelection, action, expectedSelection) {
+    expectChange(model(paragraphs, [0, 0, 0, 0], initialSelection),
+      action, model(paragraphs, [0, 0, 0, 0], expectedSelection));
+  }
+
+  it('selects text', () => {
+    expectSelectionChange([[['Good morning Vietnam']]],
+      {},
+      makeSelection(makeCursor([0, 0, 0, 5]), makeCursor([0, 0, 0, 12])),
+      {start: makeCursor([0, 0, 0, 5]), end: makeCursor([0, 0, 0, 12])}
+    );
+  });
+
+  it('selects text', () => {
+    expectChange(
+      model([[['Good morning Vietnam']]], [0, 0, 0, 12], {start: [0, 0, 0, 5], end: [0, 0, 0, 12]}),
+      applyStyle(STYLES.BOLD),
+      model([[['Good ', 'morning', ' Vietnam']]], [0, 0, 0, 12], {start: [0, 0, 0, 5], end: [0, 0, 0, 12]},
+        [[[[], [STYLES.BOLD], []]]])
+    );
   });
 
 });
