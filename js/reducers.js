@@ -1,5 +1,6 @@
 var immutable = require('immutable');
 var fromJS = immutable.fromJS;
+var List = immutable.List;
 
 var actions = require('./actions');
 var KEYS = require('./keys');
@@ -18,7 +19,7 @@ var DEFAULT_STATE = fromJS({
   cursor: [0, 0, 0, 0, 0, 0],
   selection: {},
   content: [[[[['']]]]],
-  style: [[[[[[]]]]]]
+  style: {}
 });
 
 function reducers(state, action) {
@@ -156,24 +157,67 @@ function reducers(state, action) {
       return state.set('selection', fromJS(action.payload));
 
     case actions.APPLY_STYLE:
-      // Break up the selection's enclosing chunk to contain a chunk with just the selection
-      // Apply action.payload's style to that chunk
-      const selectionStart = state.getIn(['selection', 'start', CURSOR.CHAR]);
-      const selectionEnd = state.getIn(['selection', 'end', CURSOR.CHAR]);
+      function splitAt(_state, locationGetter) {
+        // line: ['x', 'y', 'breakfast', 'z', 'w']
+        // location: [... 2, 5]
+        // ->line: ['x', 'y', 'break', 'fast', 'z', 'w']
 
-      return state
-        .update('content', content =>
-          content.updateIn(current(CURSOR.LINE), line =>
-            fromJS([
-              line.get(0).slice(0, selectionStart),
-              line.get(0).slice(selectionStart, selectionEnd),
-              line.get(0).slice(selectionEnd),
-            ])
+        const location = locationGetter(_state);
+
+        function updateLocation(oldLocation) {
+          const needsUpdate = (
+            oldLocation.slice(0, CURSOR.CHUNK).equals(location.slice(0, CURSOR.CHUNK)) &&
+            oldLocation.get(CURSOR.CHAR) >= location.get(CURSOR.CHAR)
+          );
+
+          return needsUpdate
+            ? oldLocation
+              .update(CURSOR.CHUNK, chunk => chunk + 1)
+              .update(CURSOR.CHAR, ch => ch - location.get(CURSOR.CHAR))
+            : oldLocation;
+        }
+
+        return _state
+          .update('content', content =>
+            content.updateIn(location.slice(0, CURSOR.CHUNK), line => {
+              const chunkIdx = location.get(CURSOR.CHUNK);
+              const chunk = line.get(chunkIdx);
+              const charIdx = location.get(CURSOR.CHAR);
+              return line.slice(0, chunkIdx).concat(
+                  List.of(chunk.slice(0, charIdx), chunk.slice(charIdx))
+                ).concat(
+                  line.slice(chunkIdx + 1)
+                );
+            })
           )
-        )
-        .update('style', style =>
-          style.setIn(current(CURSOR.LINE), [[], [STYLES.BOLD], []])
-        );
+          .update('cursor', updateLocation)
+          .update('selection', selection =>
+            selection
+              .update('start', start => start && updateLocation(start))
+              .update('end', end => end && updateLocation(end))
+          )
+          // .update('style', style =>
+          //   style.setIn(current(CURSOR.CHUNK), style)
+          // )
+          ;
+      }
+
+      // TODO: Make this work for selections that span chunks/lines/paras/etc
+      function applyStyle(_state, _style) {
+        return _state
+          .update('style', style =>
+            style.setIn(_state.getIn(['selection', 'start']).slice(0, CURSOR.CHAR), _style)
+          );
+      }
+
+      const selectionStart = _state => _state.getIn(['selection', 'start']);
+      const selectionEnd = _state => _state.getIn(['selection', 'end']);
+      const style = action.payload;
+
+      // Split the chunk where selection.start is on selection.start & update selection.start & cursor
+      // Split the chunk where selection.end is on selection.end & update selection.end & cursor
+      // Apply action.payload's style to chunks covered by selection
+      return applyStyle(splitAt(splitAt(state, selectionStart), selectionEnd), style);
 
     default:
       return state;

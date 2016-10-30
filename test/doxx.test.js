@@ -26,7 +26,7 @@ describe('Doxx', function() {
       content: [[paragraphs]],
       cursor: makeCursor(cursor),
       selection: selection || {},
-      style: style || [[[[[[]]]]]]
+      style: style || {},
     });
   }
 
@@ -103,12 +103,16 @@ describe('Doxx', function() {
     );
   });
 
-  it('selects text', () => {
+  it('applies style to selection', () => {
     expectChange(
-      model([[['Good morning Vietnam']]], [0, 0, 0, 12], {start: [0, 0, 0, 0, 0, 5], end: [0, 0, 0, 0, 0, 12]}),
-      applyStyle(STYLES.BOLD),
-      model([[['Good ', 'morning', ' Vietnam']]], [0, 0, 0, 12], {start: [0, 0, 0, 0, 0, 5], end: [0, 0, 0, 0, 0, 12]},
-        [[[[[[], [STYLES.BOLD], []]]]]])
+      model([[['Good morning Vietnam']]],
+        [0, 0, 0, 12],
+        {start: [0, 0, 0, 0, 0, 5], end: [0, 0, 0, 0, 0, 12]}),
+      applyStyle({[STYLES.BOLD]: true}),
+      model([[['Good ', 'morning', ' Vietnam']]],
+        [0, 0, 2, 0],
+        {start: [0, 0, 0, 0, 1, 0], end: [0, 0, 0, 0, 2, 0]},
+        {0:{0:{0:{0:{1:{[STYLES.BOLD]: true}}}}}})
     );
   });
 
