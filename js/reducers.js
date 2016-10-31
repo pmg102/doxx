@@ -110,7 +110,7 @@ function reducers(state, action) {
                 )
                 .updateIn(
                   current(CURSOR.LINE),
-                  chunks => chunks.slice(0, cursor.get(CURSOR.CHUNK) + 1)
+                  chunks => chunks.take(cursor.get(CURSOR.CHUNK) + 1)
                 )
                 .updateIn(
                   current(CURSOR.COLUMN),
@@ -157,7 +157,7 @@ function reducers(state, action) {
       return state.set('selection', fromJS(action.payload));
 
     case actions.APPLY_STYLE:
-      function splitAt(_state, locationGetter) {
+      function splitAt(locationGetter, _state) {
         // line: ['x', 'y', 'breakfast', 'z', 'w']
         // location: [... 2, 5]
         // ->line: ['x', 'y', 'break', 'fast', 'z', 'w']
@@ -166,7 +166,7 @@ function reducers(state, action) {
 
         function updateLocation(oldLocation) {
           const needsUpdate = (
-            oldLocation.slice(0, CURSOR.CHUNK).equals(location.slice(0, CURSOR.CHUNK)) &&
+            oldLocation.take(CURSOR.CHUNK).equals(location.take(CURSOR.CHUNK)) &&
             oldLocation.get(CURSOR.CHAR) >= location.get(CURSOR.CHAR)
           );
 
@@ -179,11 +179,11 @@ function reducers(state, action) {
 
         return _state
           .update('content', content =>
-            content.updateIn(location.slice(0, CURSOR.CHUNK), line => {
+            content.updateIn(location.take(CURSOR.CHUNK), line => {
               const chunkIdx = location.get(CURSOR.CHUNK);
               const chunk = line.get(chunkIdx);
               const charIdx = location.get(CURSOR.CHAR);
-              return line.slice(0, chunkIdx).concat(
+              return line.take(chunkIdx).concat(
                   List.of(chunk.slice(0, charIdx), chunk.slice(charIdx))
                 ).concat(
                   line.slice(chunkIdx + 1)
@@ -196,28 +196,48 @@ function reducers(state, action) {
               .update('start', start => start && updateLocation(start))
               .update('end', end => end && updateLocation(end))
           )
+          // TODO: when a chunk is split, corresponding style metadata must be duplicated
           // .update('style', style =>
           //   style.setIn(current(CURSOR.CHUNK), style)
           // )
           ;
       }
 
-      // TODO: Make this work for selections that span chunks/lines/paras/etc
-      function applyStyle(_state, _style) {
-        return _state
-          .update('style', style =>
-            style.setIn(_state.getIn(['selection', 'start']).slice(0, CURSOR.CHAR), _style)
+      function applyStyleFromTo(_state, style, start, end, cursor=List()) {
+        const content = _state.getIn(cursor.unshift('content'));
+        if (List.isList(content)) {
+          return content.reduce(
+            (__state, value, key) => {
+              if ((start && (key < start.first())) || (end && (key > end.first()))) {
+                return __state;
+              }
+
+              const _start = start && key === start.first() ? start.rest() : undefined;
+              const _end = end && key === end.first() ? end.rest() : undefined;
+              return applyStyleFromTo(__state, style, _start, _end, cursor.push(key));
+            },
+            _state
           );
+        } else {
+          if (end && end.first() === 0) return _state;
+          return _state.setIn(cursor.unshift('style'), style);
+        }
+      }
+
+      function applyStyle(_style, _state) {
+        return applyStyleFromTo(
+          _state,
+          _style,
+          _state.getIn(['selection', 'start']),
+          _state.getIn(['selection', 'end'])
+        );
       }
 
       const selectionStart = _state => _state.getIn(['selection', 'start']);
       const selectionEnd = _state => _state.getIn(['selection', 'end']);
       const style = action.payload;
 
-      // Split the chunk where selection.start is on selection.start & update selection.start & cursor
-      // Split the chunk where selection.end is on selection.end & update selection.end & cursor
-      // Apply action.payload's style to chunks covered by selection
-      return applyStyle(splitAt(splitAt(state, selectionStart), selectionEnd), style);
+      return applyStyle(style, splitAt(selectionEnd, splitAt(selectionStart, state)));
 
     default:
       return state;

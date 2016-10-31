@@ -116,4 +116,86 @@ describe('Doxx', function() {
     );
   });
 
+  it('applies style to selection spanning paras, lines and chunks', () => {
+    expectChange(
+      model(
+        [
+          [
+            ['p1l1chunk1'],
+            ['p1l2chunk1', 'p1l2chunk2', 'p1l2chunk3'],
+            ['p1l3chunk1', 'p1l3chunk2'],
+          ],
+          [
+            ['p2l1chunk1', 'p2l1chunk2'],
+            ['p2l2chunk1', 'p2l2chunk2'],
+          ],
+          [
+            ['p3l1chunk1', 'p3l1chunk2'],
+            ['p3l2chunk1', 'p3l2chunk2', 'p3l2chunk3'],
+            ['p3l3chunk1'],
+          ],
+        ],
+        [2, 1, 1, 4],
+        {start: [0, 0, 0, 1, 1, 4], end: [0, 0, 2, 1, 1, 4]}
+      ),
+      applyStyle({[STYLES.BOLD]: true}),
+      model(
+        [
+          [
+            ['p1l1chunk1'],
+            ['p1l2chunk1', 'p1l2', 'chunk2', 'p1l2chunk3'],
+            ['p1l3chunk1', 'p1l3chunk2'],
+          ],
+          [
+            ['p2l1chunk1', 'p2l1chunk2'],
+            ['p2l2chunk1', 'p2l2chunk2'],
+          ],
+          [
+            ['p3l1chunk1', 'p3l1chunk2'],
+            ['p3l2chunk1', 'p3l2', 'chunk2', 'p3l2chunk3'],
+            ['p3l3chunk1'],
+          ],
+        ],
+        [2, 1, 2, 0],
+        {start: [0, 0, 0, 1, 2, 0], end: [0, 0, 2, 1, 2, 0]},
+        {
+          0:{
+            0:{
+              0:{ // para
+                1:{ // LINE
+                  2:{[STYLES.BOLD]: true},
+                  3:{[STYLES.BOLD]: true},
+                },
+                2:{ // LINE
+                  0:{[STYLES.BOLD]: true},
+                  1:{[STYLES.BOLD]: true},
+                },
+              },
+              1:{ // para
+                0:{ // LINE
+                  0:{[STYLES.BOLD]: true},
+                  1:{[STYLES.BOLD]: true},
+                },
+                1:{ // LINE
+                  0:{[STYLES.BOLD]: true},
+                  1:{[STYLES.BOLD]: true},
+                },
+              },
+              2:{ // para
+                0:{ // LINE
+                  0:{[STYLES.BOLD]: true},
+                  1:{[STYLES.BOLD]: true},
+                },
+                1:{ // LINE
+                  0:{[STYLES.BOLD]: true},
+                  1:{[STYLES.BOLD]: true},
+                },
+              },
+            },
+          },
+        }
+      )
+    );
+  });
+
 });
