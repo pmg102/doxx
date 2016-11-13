@@ -4,9 +4,9 @@ A WYSIWYG document editor in the browser.
 
 ## Actions:
 
-- [ ] Type letters
-- [ ] Press backspace
-- [ ] Press enter
+- [x] Type letters
+- [x] Press backspace
+- [x] Press enter
 - [ ] Press < ^ > v
 - [ ] Reach end of line
 - [ ] Click within chunk
