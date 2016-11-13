@@ -6,7 +6,7 @@ var makeSelection = actions.makeSelection;
 var applyStyle = actions.applyStyle;
 var KEYS = require('../js/keys');
 var STYLES = require('../js/styles');
-var reducers = require('../js/reducers');
+var reducers = require('../js/reducers').document;
 
 var immutable = require('immutable');
 var fromJS = immutable.fromJS;

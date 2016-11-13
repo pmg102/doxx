@@ -1,0 +1,25 @@
+body {
+  background-color: #ccc;
+  font-family: arial;
+}
+
+.page {
+  background-color: white;
+  border: solid grey 1px;
+  width: 797px;
+  height: 1123px;
+  padding: 20px 20px;
+  margin: auto;
+}
+
+.para {
+  position: relative;
+}
+
+#cursor {
+  position: absolute;
+  width: 2px;
+  height: 18px;
+  background-color: black;
+  top: 0;
+}

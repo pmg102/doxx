@@ -22,7 +22,7 @@ var DEFAULT_STATE = fromJS({
   style: {}
 });
 
-function reducers(state, action) {
+function document(state, action) {
   if (state === undefined) {
     state = DEFAULT_STATE;
   }
@@ -31,15 +31,15 @@ function reducers(state, action) {
   var content = state.get('content');
 
   function current(cursorDepth) {
-    return cursor.take(cursorDepth + 1);
+    return cursor.slice(0, cursorDepth + 1);
   }
   function currentBut(cursorDepth, value) {
-    return cursor.take(cursorDepth).push(value);
+    return cursor.slice(0, cursorDepth).push(value);
   }
 
   function jumpTo(jumpSpec) {
     return state.update('cursor', cursor =>
-      cursor.take(cursor.size - jumpSpec.length).concat(jumpSpec)
+      cursor.slice(0, cursor.size - jumpSpec.length).concat(jumpSpec)
     );
   }
 
@@ -148,6 +148,8 @@ function reducers(state, action) {
             ? jumpTo(moveCursorToNext(nextElementType))
             : state;
 
+        default:
+          return state;
       }
 
     case actions.SET_CURSOR:
@@ -244,4 +246,6 @@ function reducers(state, action) {
   }
 }
 
-module.exports = reducers;
+module.exports = {
+  document
+};
