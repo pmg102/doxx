@@ -23,6 +23,12 @@ class Doxx extends React.Component {
     const cursorAt = location =>
       cursor.slice(0, location.length).equals(List(location));
 
+    const measureText = text => {
+      var measureText = document.getElementById('measure-text');
+      measureText.textContent = text;
+      return measureText.offsetWidth;
+    };
+
     return (
       <div>
         {content.map((page, pageIdx) =>
@@ -37,7 +43,7 @@ class Doxx extends React.Component {
                           <span className="chunk" style={{position: 'relative'}}>
                             {chunk}
                             {cursorAt([pageIdx, colIdx, paraIdx, lineIdx, chunkIdx]) && (
-                              <Cursor right={0} />
+                              <Cursor left={measureText(chunk.substr(0, cursor.last()))} />
                             )}
                           </span>
                         )}

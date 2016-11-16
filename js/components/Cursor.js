@@ -20,7 +20,7 @@ class Cursor extends React.Component {
     return (
       <div id="cursor" style={{
         visibility: this.state.visible ? 'visible' : 'hidden',
-        right: this.props.right
+        left: this.props.left
       }}/>
     );
   }

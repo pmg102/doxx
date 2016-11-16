@@ -88,13 +88,67 @@ function document(state, action) {
       var keyCode = action.payload;
       switch (keyCode) {
         case KEYS.BACKSPACE:
+          // TODO: Refactor like KEYS.LEFT_ARROW handler
+
           if (cursor.get(CURSOR.CHAR) > 0) {
+            const curChar = cursor.get(CURSOR.CHAR);
             return state.update('content', content =>
                 content.updateIn(current(CURSOR.CHUNK), chunk =>
-                  chunk.substr(0, cursor.get(CURSOR.CHAR) - 1) + chunk.substr(cursor.get(CURSOR.CHAR))
+                  chunk.substr(0, curChar - 1) + chunk.substr(curChar)
                 )
               )
               .updateIn(['cursor', CURSOR.CHAR], char => char - 1);
+          }
+          else if (cursor.get(CURSOR.CHUNK) > 0) {
+            // Join the current chunk to prev chunk
+            const curChunk = cursor.get(CURSOR.CHUNK);
+            return state.update('content', content =>
+              content.updateIn(current(CURSOR.LINE), line =>
+                line.slice(0, curChunk - 1).push(
+                  line.get(curChunk - 1) + line.get(curChunk)
+                ).concat(
+                  line.slice(curChunk + 1)
+                )
+              )
+            ).update('cursor', cursor =>
+              cursor
+                .update(CURSOR.CHUNK, chunk => chunk - 1)
+                .set(CURSOR.CHAR, state.get('content').getIn(current(CURSOR.CHUNK)).length)
+            );
+          }
+          else if (cursor.get(CURSOR.LINE) > 0) {
+            // Join the current line to prev line
+            const curLine = cursor.get(CURSOR.LINE);
+            return state.update('content', content =>
+              content.updateIn(current(CURSOR.PARAGRAPH), para =>
+                para.slice(0, curLine - 1).push(
+                  para.get(curLine - 1) + para.get(curLine)
+                ).concat(
+                  para.slice(curLine + 1)
+                )
+              )
+            ).update('cursor', cursor =>
+              cursor
+                .update(CURSOR.LINE, line => line - 1)
+                .set(CURSOR.CHUNK, state.get('content').getIn(current(CURSOR.LINE)).size)
+            );
+          }
+          else if (cursor.get(CURSOR.PARAGRAPH) > 0) {
+            // Join the current para to prev para
+            const curPara = cursor.get(CURSOR.PARAGRAPH);
+            return state.update('content', content =>
+              content.updateIn(current(CURSOR.COLUMN), column =>
+                column.slice(0, curPara - 1).push(
+                  column.get(curPara - 1) + column.get(curPara)
+                ).concat(
+                  column.slice(curPara + 1)
+                )
+              )
+            ).update('cursor', cursor =>
+              cursor
+                .update(CURSOR.PARAGRAPH, para => para - 1)
+                .set(CURSOR.CHUNK, state.get('content').getIn(current(CURSOR.PARAGRAPH)).size)
+            );
           }
           return state;
 
