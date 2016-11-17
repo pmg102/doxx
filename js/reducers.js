@@ -74,6 +74,49 @@ function document(state, action) {
     }
   }
 
+  function back(tree, _cursor) {
+    const curCursor = _cursor.get(0);
+    if (_cursor.size === 1) {
+      if (curCursor === 0) throw 'No more chars to delete!';
+      if (curCursor === -1) {
+        return [
+          tree.slice(0, -1),
+          List.of(-1)
+        ];
+      }
+      return [
+        tree.substr(0, curCursor - 1) + tree.substr(curCursor),
+        List.of(curCursor - 1)
+      ];
+    }
+    else {
+      try {
+        if (curCursor === -1) {
+          if (tree.size < 1) throw 'No more chunks to delete!';
+          const [subTree, subCursor] = back(tree.get(tree.size - 1), _cursor.slice(1));
+          return [
+            tree.slice(0, -1).push(subTree),
+            subCursor.unshift(curCursor),
+          ];
+        }
+
+        const [subTree, subCursor] = back(tree.get(curCursor), _cursor.slice(1));
+        return [
+          tree.slice(0, curCursor).push(subTree).concat(tree.slice(curCursor + 1)),
+          subCursor.unshift(curCursor),
+        ];
+      }
+      catch (Error) {
+        if (curCursor < 1) throw 'No more chunks to delete!';
+        const [subTree, subCursor] = back(tree.get(curCursor - 1), List(Array(_cursor.size - 1).fill(-1)));
+        return [
+          tree.slice(0, curCursor - 1).push(subTree).concat(tree.slice(curCursor)),
+          _cursor,
+        ];
+      }
+    }
+  }
+
   switch (action.type) {
     case actions.TYPE_CHARACTER:
       var char = action.payload;
@@ -88,69 +131,16 @@ function document(state, action) {
       var keyCode = action.payload;
       switch (keyCode) {
         case KEYS.BACKSPACE:
-          // TODO: Refactor like KEYS.LEFT_ARROW handler
-
-          if (cursor.get(CURSOR.CHAR) > 0) {
-            const curChar = cursor.get(CURSOR.CHAR);
-            return state.update('content', content =>
-                content.updateIn(current(CURSOR.CHUNK), chunk =>
-                  chunk.substr(0, curChar - 1) + chunk.substr(curChar)
-                )
-              )
-              .updateIn(['cursor', CURSOR.CHAR], char => char - 1);
+          try {
+            const [_content, _cursor] = back(content, cursor);
+            return state.merge({content: _content, cursor: _cursor});
           }
-          else if (cursor.get(CURSOR.CHUNK) > 0) {
-            // Join the current chunk to prev chunk
-            const curChunk = cursor.get(CURSOR.CHUNK);
-            return state.update('content', content =>
-              content.updateIn(current(CURSOR.LINE), line =>
-                line.slice(0, curChunk - 1).push(
-                  line.get(curChunk - 1) + line.get(curChunk)
-                ).concat(
-                  line.slice(curChunk + 1)
-                )
-              )
-            ).update('cursor', cursor =>
-              cursor
-                .update(CURSOR.CHUNK, chunk => chunk - 1)
-                .set(CURSOR.CHAR, state.get('content').getIn(current(CURSOR.CHUNK)).length)
-            );
+          catch (err) {
+            if (err === 'No more chars to delete!' || err === 'No more chunks to delete!') {
+              return state;
+            }
+            throw err;
           }
-          else if (cursor.get(CURSOR.LINE) > 0) {
-            // Join the current line to prev line
-            const curLine = cursor.get(CURSOR.LINE);
-            return state.update('content', content =>
-              content.updateIn(current(CURSOR.PARAGRAPH), para =>
-                para.slice(0, curLine - 1).push(
-                  para.get(curLine - 1) + para.get(curLine)
-                ).concat(
-                  para.slice(curLine + 1)
-                )
-              )
-            ).update('cursor', cursor =>
-              cursor
-                .update(CURSOR.LINE, line => line - 1)
-                .set(CURSOR.CHUNK, state.get('content').getIn(current(CURSOR.LINE)).size)
-            );
-          }
-          else if (cursor.get(CURSOR.PARAGRAPH) > 0) {
-            // Join the current para to prev para
-            const curPara = cursor.get(CURSOR.PARAGRAPH);
-            return state.update('content', content =>
-              content.updateIn(current(CURSOR.COLUMN), column =>
-                column.slice(0, curPara - 1).push(
-                  column.get(curPara - 1) + column.get(curPara)
-                ).concat(
-                  column.slice(curPara + 1)
-                )
-              )
-            ).update('cursor', cursor =>
-              cursor
-                .update(CURSOR.PARAGRAPH, para => para - 1)
-                .set(CURSOR.CHUNK, state.get('content').getIn(current(CURSOR.PARAGRAPH)).size)
-            );
-          }
-          return state;
 
         case KEYS.ENTER:
           var lineChunks = content.getIn(current(CURSOR.LINE));

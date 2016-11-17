@@ -46,8 +46,10 @@ describe('Doxx', function() {
     expectChange(model([[['a']]], [0, 0, 0, 0]), pressKey(KEYS.BACKSPACE), model([[['a']]], [0, 0, 0, 0]));
     expectChange(model([[['a']]], [0, 0, 0, 1]), pressKey(KEYS.BACKSPACE), model([[['']]], [0, 0, 0, 0]));
     expectChange(model([[['abc']]], [0, 0, 0, 2]), pressKey(KEYS.BACKSPACE), model([[['ac']]], [0, 0, 0, 1]));
-    expectChange(model([[['Good ', 'mor']], [['ning', ' Vietnam']]], [1, 0, 0, 0]), pressKey(KEYS.BACKSPACE),
-      model([[['Good ', 'morning', ' Vietnam']]], [0, 0, 1, 3]));
+    expectChange(model([[['Good', ' morning']]], [0, 0, 1, 0]), pressKey(KEYS.BACKSPACE),
+      model([[['Goo', ' morning']]], [0, 0, 1, 0]));
+    // expectChange(model([[['Good ', 'mor']], [['ning', ' Vietnam']]], [1, 0, 0, 0]), pressKey(KEYS.BACKSPACE),
+    //   model([[['Good ', 'morning', ' Vietnam']]], [0, 0, 1, 3]));
   });
 
   it('should insert paragraph break on enter', function() {
