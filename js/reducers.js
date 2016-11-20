@@ -75,6 +75,8 @@ function document(state, action) {
   }
 
   function back(tree, _cursor) {
+    const cursorDepth = 6 - _cursor.size;
+
     const curCursor = _cursor.get(0);
     if (_cursor.size === 1) {
       if (curCursor === 0) throw 'No more chars to delete!';
@@ -99,6 +101,22 @@ function document(state, action) {
             subCursor.unshift(curCursor),
           ];
         }
+
+        if (cursorDepth <= CURSOR.PARAGRAPH && _cursor.slice(1).every(each => each === 0) && curCursor > 0) {
+          return [
+            tree.slice(0, curCursor - 1).push(
+              tree.get(curCursor - 1).slice(0, -1).push(
+                tree.get(curCursor - 1).get(-1).concat(tree.get(curCursor).get(0))
+              ).concat(tree.get(curCursor).slice(1))
+            ).concat(tree.slice(curCursor + 1)),
+            _cursor
+              .update(0, cur => cur - 1)
+              .set(1, tree.get(curCursor - 1).size - 1)
+              .set(2, tree.get(curCursor - 1).get(-1).size - 1)
+              .set(3, tree.get(curCursor - 1).get(-1).get(-1).length)
+          ];
+        }
+
 
         const [subTree, subCursor] = back(tree.get(curCursor), _cursor.slice(1));
         return [

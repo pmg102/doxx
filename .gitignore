@@ -1,2 +1,4 @@
 node_modules
 js/index.min.js
+js/bundle.map.js
+

@@ -13,6 +13,7 @@ class Doxx extends React.Component {
       this.props.pressKey(evt.keyCode);
     };
     document.onkeypress = evt => {
+      if (evt.keyCode === 13) return;
       this.props.typeCharacter(escapeSpace(String.fromCharCode(evt.keyCode)));
       evt.preventDefault();
     };
@@ -35,7 +36,7 @@ class Doxx extends React.Component {
           <div className="page">
             <div className="content">
               {page.map((column, colIdx) =>
-                column.map((paragraph, paraIdx) => 
+                column.map((paragraph, paraIdx) =>
                   <div className="para">
                     {paragraph.map((line, lineIdx) =>
                       <div className="line">
