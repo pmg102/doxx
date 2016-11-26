@@ -23,6 +23,11 @@ function applyStyle(style) {
   return { type: APPLY_STYLE, payload: style };
 }
 
+var REFLOW_LINE = 'REFLOW_LINE';
+function reflowLine(chunkDims, line /* if omitted, current line */) {
+  return { type: REFLOW_LINE, payload: { line, chunkDims } };
+}
+
 module.exports = {
   TYPE_CHARACTER: TYPE_CHARACTER,
   typeCharacter: typeCharacter,
@@ -34,4 +39,6 @@ module.exports = {
   makeSelection: makeSelection,
   APPLY_STYLE: APPLY_STYLE,
   applyStyle: applyStyle,
+  REFLOW_LINE: REFLOW_LINE,
+  reflowLine: reflowLine,
 };

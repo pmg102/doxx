@@ -50,7 +50,20 @@ describe('Doxx', function() {
       model([[['Goo', ' morning']]], [0, 0, 1, 0]));
   });
 
-  it('should delete join paragraphs on backspace', function() {
+  it('should join lines on backspace', function() {
+    expectChange(
+      model([[['aa', 'bb'], ['cc', 'dd']]], [0, 1, 0, 0]),
+      pressKey(KEYS.BACKSPACE),
+      model([[['aa', 'b', 'cc'], ['dd']]], [0, 0, 1, 1])
+    );
+    expectChange(
+      model([[['aa', 'bb'], ['']]], [0, 1, 0, 0]),
+      pressKey(KEYS.BACKSPACE),
+      model([[['aa', 'b']]], [0, 0, 1, 1])
+    );
+  });
+
+  it('should join paragraphs on backspace', function() {
     expectChange(
       model([[['aa', 'bb'], ['cc', 'dd']], [['ee', 'ff'], ['gg', 'hh']]], [1, 0, 0, 0]),
       pressKey(KEYS.BACKSPACE),
@@ -64,6 +77,31 @@ describe('Doxx', function() {
     expectChange(model([[['catfish']]], [0, 0, 0, 3]), pressKey(KEYS.ENTER), model([[['cat']], [['fish']]], [1, 0, 0, 0]));
     expectChange(model([[['Good ', 'morning', ' Vietnam']]], [0, 0, 1, 3]), pressKey(KEYS.ENTER),
       model([[['Good ', 'mor']], [['ning', ' Vietnam']]], [1, 0, 0, 0]));
+  });
+
+  xdescribe('lines reflow', () => {
+    // para must have some concept of its width -- this is down to ruler which usually applies to column?
+
+    // measureText must take a list of styled chunks and return their length
+    // stub with character count i guess
+
+    // actual implementation probably wants to use the line which is currently in the DOM!
+
+    it('should break line when character added causes current line to exceed para width', function() {
+      expectChange(
+        model([[['the', 'first', 'line']]], [0, 0, 1, 2]),
+        typeCharacter('w'),
+        model([[['the', 'fiwrst', 'lin'], ['e']]], [0, 0, 1, 3])
+      );
+    });
+
+    it('should unbreak line when character removed causes current line to not exceed para width', function() {
+      expectChange(
+        model([[['the', 'first', 'line']]], [0, 0, 1, 2]),
+        pressKey(KEYS.BACKSPACE),
+        model([[['the', 'fiwrst', 'lin'], ['e']]], [0, 0, 1, 3])
+      );
+    });
   });
 
   function expectCursorChange(paragraphs, initialCursor, action, expectedCursor) {

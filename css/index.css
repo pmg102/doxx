@@ -1,20 +1,40 @@
 body {
-  background-color: #ccc;
+  background-color: #eee;
   font-family: arial;
+  margin: 0px;
+}
+
+#doc {
+  margin-top: 8px;
+  overflow: scroll;
+}
+
+#ruler {
+  height: 14px;
+  background-color: #eee;
+  border-bottom: solid 1px #ddd;
+}
+
+.ruler-inner {
+  margin: auto;
+  width: 637px;
+  background-color: white;
+  height: 14px;
 }
 
 .page {
+  cursor: text;
   background-color: white;
-  border: solid grey 1px;
-  width: 797px;
-  height: 1123px;
-  padding: 20px 20px;
+  border: solid #ccc 1px;
+  width: 637px;
+  height: 883px;
+  padding: 120px 80px;
   margin: auto;
 }
 
 .para {
   position: relative;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
   min-height: 1em;
 }
 

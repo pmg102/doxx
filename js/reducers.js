@@ -15,6 +15,8 @@ var CURSOR = {
   CHAR: 5
 };
 
+const COL_WIDTH = 637;
+
 var DEFAULT_STATE = fromJS({
   cursor: [0, 0, 0, 0, 0, 0],
   selection: {},
@@ -117,6 +119,39 @@ function document(state, action) {
           ];
         }
 
+        if (cursorDepth <= CURSOR.LINE && _cursor.slice(1).every(each => each === 0) && curCursor > 0) {
+          console.log(tree.toJS());
+          console.log(_cursor.toJS());
+          // [ [ 'aa', 'bb' ], [ 'cc', 'dd' ] ] => [ [ 'aa', 'b', 'cc' ], [ 'dd' ] ]
+
+          console.log(tree.slice(0, curCursor - 1).push(
+              tree.get(curCursor - 1).slice(0, -1).push(
+                tree.get(curCursor - 1).get(-1).slice(0, -1)
+              ).concat(
+                tree.get(curCursor).get(0) ? [tree.get(curCursor).get(0)] : []
+              )
+            ).concat(
+              tree.get(curCursor).slice(1).size ? [tree.get(curCursor).slice(1)] : []
+            )
+            .concat(tree.slice(curCursor + 1)));
+
+          return [
+            tree.slice(0, curCursor - 1).push(
+              tree.get(curCursor - 1).slice(0, -1).push(
+                tree.get(curCursor - 1).get(-1).slice(0, -1)
+              ).concat(
+                tree.get(curCursor).get(0) ? [tree.get(curCursor).get(0)] : []
+              )
+            ).concat(
+              tree.get(curCursor).slice(1).size ? [tree.get(curCursor).slice(1)] : []
+            )
+            .concat(tree.slice(curCursor + 1)),
+            _cursor
+              .update(0, cur => cur - 1)
+              .set(1, tree.get(curCursor - 1).size - 1)
+              .set(2, tree.get(curCursor - 1).get(-1).length - 1)
+          ];
+        }
 
         const [subTree, subCursor] = back(tree.get(curCursor), _cursor.slice(1));
         return [
@@ -302,6 +337,98 @@ function document(state, action) {
       const style = action.payload;
 
       return applyStyle(style, splitAt(selectionEnd, splitAt(selectionStart, state)));
+
+    case actions.REFLOW_LINE:
+      const { chunkDims } = action.payload;
+      const curLine = action.payload.line || current(CURSOR.LINE);
+
+      console.log(chunkDims.toJS());
+
+      if (chunkDims.get(-1).right > COL_WIDTH) {
+        console.log('splitting line', curLine.toJS());
+
+        // TODO: Make a good first guess based on number of chars
+        const constrainText = (text, width) => {
+          for (var len=text.length; len>=0; len--) {
+            var measureText = window.document.getElementById('measure-text');
+            measureText.textContent = text.substr(0, len);
+            if (measureText.offsetWidth < width) {
+              const lastSpace = text.lastIndexOf('\u00a0', len);
+              if (lastSpace === len || lastSpace === -1) {
+                return len;
+              }
+            }
+          }
+          return 0;
+        };
+
+        let newLen;
+        console.log('////')
+        console.log(curLine.toJS())
+        console.log(curLine.slice(0, -1).toJS())
+        const _content = state.get('content').updateIn(curLine.slice(0, -1), para => {
+          const lineIdx = curLine.get(-1);
+          const lastChunk = para.getIn([lineIdx, -1]);
+          newLen = constrainText(lastChunk, COL_WIDTH - chunkDims.get(-1).left);
+          const newLastChunk = lastChunk.substr(0, newLen);
+          const newChunk = lastChunk.substr(newLen);
+
+          const trunky = para.setIn([lineIdx, -1], newLastChunk);
+
+          if (para.get(lineIdx + 1)) {
+            return trunky.update(lineIdx + 1, line => line.unshift(newChunk));
+          }
+          else {
+            return trunky.push(List([newChunk]));
+          }
+        });
+
+        return state
+          .set('content', _content)
+          .update('cursor', cursor =>
+            (current(CURSOR.LINE).equals(curLine)
+              && cursor.get(CURSOR.CHUNK) === content.getIn(curLine).size - 1
+              && cursor.get(CURSOR.CHAR) >= newLen)
+              ? cursor
+                .update(CURSOR.LINE, line => line + 1)
+                .set(CURSOR.CHUNK, 0)
+                .update(CURSOR.CHAR, ch => ch - newLen)
+              : cursor
+          );
+      }
+      else {
+        const nextLineCursor = curLine.slice(0, -1).push(curLine.get(-1) + 1);
+        const nextLine = content.getIn(nextLineCursor);
+        if (nextLine) {
+          const firstChunk = nextLine.get(0);
+          if (firstChunk) {
+            const firstChar = firstChunk[0];
+
+            const measureText = window.document.getElementById('measure-text');
+            measureText.textContent = firstChar;
+            if (chunkDims.get(-1).right + measureText.offsetWidth < COL_WIDTH) {
+              console.log('Joining lines...');
+
+              return state
+                .update('content', content =>
+                  content
+                    .updateIn(curLine, line => line.push(firstChunk))
+                    .updateIn(nextLineCursor, line => line.slice(1))
+                )
+                .update('cursor', cursor =>
+                  (current(CURSOR.LINE).equals(nextLineCursor)
+                    && cursor.get(CURSOR.CHUNK) === 0)
+                    ? cursor
+                      .update(CURSOR.LINE, line => line - 1)
+                      .set(CURSOR.CHUNK, content.getIn(curLine).size)
+                    : cursor
+                );
+            }
+          }
+        }
+
+        return state;
+      }
 
     default:
       return state;
