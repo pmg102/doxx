@@ -52,15 +52,15 @@ class Doxx extends React.Component {
         </div>
         <div id="doc">
           {content.map((page, pageIdx) =>
-            <div className="page">
+            <div key={pageIdx} className="page">
               <div className="content">
                 {page.map((column, colIdx) =>
                   column.map((paragraph, paraIdx) =>
-                    <div className="para">
+                    <div key={paraIdx} className="para">
                       {paragraph.map((line, lineIdx) =>
-                        <div className="line">
+                        <div key={lineIdx} className="line">
                           {line.map((chunk, chunkIdx) =>
-                            <span className="chunk" style={{position: 'relative'}}>
+                            <span key={chunkIdx} className="chunk" style={{position: 'relative'}}>
                               {chunk}
                               {cursorAt([pageIdx, colIdx, paraIdx, lineIdx, chunkIdx]) && (
                                 <Cursor left={measureText(chunk.substr(0, cursor.last()))} />

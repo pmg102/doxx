@@ -342,7 +342,7 @@ function document(state, action) {
       const { chunkDims } = action.payload;
       const curLine = action.payload.line || current(CURSOR.LINE);
 
-      console.log(chunkDims.toJS());
+      console.log(chunkDims.map(each => each.left + '-' + each.right).join(','));
 
       if (chunkDims.get(-1).right > COL_WIDTH) {
         console.log('splitting line', curLine.toJS());
@@ -354,7 +354,7 @@ function document(state, action) {
             measureText.textContent = text.substr(0, len);
             if (measureText.offsetWidth < width) {
               const lastSpace = text.lastIndexOf('\u00a0', len);
-              if (lastSpace === len || lastSpace === -1) {
+              if (lastSpace === len || lastSpace === len - 1 || lastSpace === -1) {
                 return len;
               }
             }
@@ -363,23 +363,27 @@ function document(state, action) {
         };
 
         let newLen;
-        console.log('////')
-        console.log(curLine.toJS())
-        console.log(curLine.slice(0, -1).toJS())
         const _content = state.get('content').updateIn(curLine.slice(0, -1), para => {
           const lineIdx = curLine.get(-1);
-          const lastChunk = para.getIn([lineIdx, -1]);
-          newLen = constrainText(lastChunk, COL_WIDTH - chunkDims.get(-1).left);
-          const newLastChunk = lastChunk.substr(0, newLen);
-          const newChunk = lastChunk.substr(newLen);
+          const line = para.get(lineIdx);
+          const splitChunkIdx = chunkDims.findIndex(chunkDim => chunkDim.right > COL_WIDTH);
+          const splitChunk = line.get(splitChunkIdx);
+          newLen = constrainText(splitChunk, COL_WIDTH - chunkDims.get(splitChunkIdx).left);
+          const newLastChunk = splitChunk.substr(0, newLen);
+          const newChunk = splitChunk.substr(newLen);
 
-          const trunky = para.setIn([lineIdx, -1], newLastChunk);
+          console.log(newLastChunk);
+          const newPara = para.update(lineIdx, _line =>
+            _line
+              .slice(0, splitChunkIdx)
+              .concat(newLastChunk ? [newLastChunk] : []));
 
+          const newLine = line.slice(splitChunkIdx + 1).unshift(newChunk);
           if (para.get(lineIdx + 1)) {
-            return trunky.update(lineIdx + 1, line => line.unshift(newChunk));
+            return newPara.update(lineIdx + 1, _line => newLine.concat(_line));
           }
           else {
-            return trunky.push(List([newChunk]));
+            return newPara.push(newLine);
           }
         });
 
